@@ -1,296 +1,304 @@
 import streamlit as st
+import json
+from snowflake.snowpark.functions import ai_complete
+import time
 
-st.set_page_config(page_title="Day 14 - Practice Project 2", page_icon="1️⃣4️⃣")
+st.set_page_config(page_title="Day 14 - Adding Avatars and Error Handling", page_icon="1️⃣4️⃣", layout="wide")
 
-st.title("Day 14: Practice Project 2")
-st.markdown("**Section 2: Building Chatbots**")
+st.title(":material/account_circle: Day 14: Adding Avatars and Error Handling")
+st.caption("30 Days of AI")
 st.markdown("---")
 
-st.header("🎯 Project: Full-Featured Chatbot")
-st.markdown("""
-Build a complete, production-ready chatbot with all the features you've learned!
-
-### Requirements:
-1. ✅ Professional chat interface
-2. ✅ Message history with persistence
-3. ✅ Context window management
-4. ✅ Input validation and sanitization
-5. ✅ Customizable personality
-6. ✅ User preferences
-7. ✅ Streaming responses
-8. ✅ Error handling
-""")
-
-st.header("📝 Full Implementation Template")
+# Code example section
+st.header("🚀 Quick Start - Adding Avatars and Error Handling")
 
 st.code("""
 import streamlit as st
-from openai import OpenAI
-import tiktoken
 import json
-from datetime import datetime
+from snowflake.snowpark.functions import ai_complete
+import time
 
-# Page config
-st.set_page_config(page_title="Advanced Chatbot", page_icon="🤖", layout="wide")
+# Connect to Snowflake
+try:
+    from snowflake.snowpark.context import get_active_session
+    session = get_active_session()
+except:
+    from snowflake.snowpark import Session
+    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+
+def call_llm(prompt_text: str) -> str:
+    df = session.range(1).select(
+        ai_complete(model="claude-3-5-sonnet", prompt=prompt_text).alias("response")
+    )
+    response_raw = df.collect()[0][0]
+    response_json = json.loads(response_raw)
+    if isinstance(response_json, dict):
+        return response_json.get("choices", [{}])[0].get("messages", "")
+    return str(response_json)
+
+st.title(":material/account_circle: Adding Avatars and Error Handling")
 
 # Initialize session state
-def init_state():
-    defaults = {
-        'messages': [],
-        'conversation_id': datetime.now().strftime("%Y%m%d_%H%M%S"),
-        'total_tokens': 0,
-        'user_prefs': {
-            'personality': 'Professional',
-            'temperature': 0.7,
-            'max_tokens': 500
-        }
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+if "system_prompt" not in st.session_state:
+    st.session_state.system_prompt = "You are a helpful assistant."
 
-init_state()
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Hello! I'm your AI assistant. How can I help you today?"}
+    ]
 
-# Cache LLM client
-@st.cache_resource
-def get_client():
-    return OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-client = get_client()
-
-# System prompts
-PERSONALITIES = {
-    "Professional": "You are a professional AI assistant. Be clear and concise.",
-    "Friendly": "You are a friendly AI companion. Be warm and engaging.",
-    "Technical": "You are a technical expert. Provide detailed explanations.",
-    "Creative": "You are a creative AI. Think outside the box."
-}
-
-# Sidebar configuration
+# Sidebar with avatar customization
 with st.sidebar:
-    st.header("⚙️ Configuration")
+    st.header(":material/settings: Settings")
     
-    personality = st.selectbox(
-        "Personality",
-        list(PERSONALITIES.keys()),
-        index=0
-    )
-    
-    temperature = st.slider(
-        "Temperature",
-        0.0, 2.0,
-        st.session_state.user_prefs['temperature'],
-        0.1
-    )
-    
-    max_tokens = st.number_input(
-        "Max Response Tokens",
-        100, 2000,
-        st.session_state.user_prefs['max_tokens']
-    )
+    st.subheader(":material/palette: Avatars")
+    user_avatar = st.selectbox("Your Avatar:", ["👤", "👨‍💻", "👩‍💻", "🙋‍♂️", "🧑", "😊"], index=0)
+    assistant_avatar = st.selectbox("Assistant Avatar:", ["🤖", "🦾", "⚡", "💡", "🎯", "✨"], index=0)
     
     st.divider()
     
-    st.subheader("📊 Statistics")
-    st.metric("Messages", len(st.session_state.messages))
-    st.metric("Total Tokens", st.session_state.total_tokens)
+    st.subheader(":material/description: System Prompt")
+    st.text_area("Customize behavior:", height=100, key="system_prompt")
     
     st.divider()
     
-    if st.button("🗑️ Clear Chat"):
-        st.session_state.messages = []
-        st.session_state.total_tokens = 0
+    # Debug mode
+    st.subheader(":material/bug_report: Debug Mode")
+    simulate_error = st.checkbox("Simulate API Error", value=False)
+    
+    st.divider()
+    
+    # Conversation stats
+    st.header("Conversation Stats")
+    user_msgs = len([m for m in st.session_state.messages if m["role"] == "user"])
+    assistant_msgs = len([m for m in st.session_state.messages if m["role"] == "assistant"])
+    st.metric("Your Messages", user_msgs)
+    st.metric("AI Responses", assistant_msgs)
+    
+    if st.button("Clear History"):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! I'm your AI assistant. How can I help you today?"}
+        ]
         st.rerun()
-    
-    if st.button("💾 Export Chat"):
-        export_data = {
-            'conversation_id': st.session_state.conversation_id,
-            'messages': st.session_state.messages,
-            'timestamp': datetime.now().isoformat()
-        }
-        st.download_button(
-            "Download JSON",
-            json.dumps(export_data, indent=2),
-            f"chat_{st.session_state.conversation_id}.json",
-            "application/json"
-        )
 
-# Main chat interface
-st.title("🤖 Advanced Chatbot")
-st.caption(f"Conversation ID: {st.session_state.conversation_id}")
+# Display messages with avatars
+for message in st.session_state.messages:
+    avatar = user_avatar if message["role"] == "user" else assistant_avatar
+    with st.chat_message(message["role"], avatar=avatar):
+        st.markdown(message["content"])
 
-# Display messages
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.write(msg["content"])
-        if msg.get("tokens"):
-            st.caption(f"Tokens: {msg['tokens']}")
-
-# Input validation
-def validate_input(text):
-    if not text or not text.strip():
-        return False, "Please enter a message"
-    if len(text) > 2000:
-        return False, "Message too long (max 2000 characters)"
-    return True, ""
-
-# Token counting
-def count_tokens(text, model="gpt-3.5-turbo"):
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-        return len(encoding.encode(text))
-    except:
-        return len(text.split())
-
-# Context management
-def manage_context(messages, max_tokens=3000):
-    if len(messages) <= 1:
-        return messages
-    
-    total = 0
-    kept_messages = []
-    
-    for msg in reversed(messages):
-        msg_tokens = count_tokens(msg['content'])
-        if total + msg_tokens > max_tokens:
-            break
-        kept_messages.insert(0, msg)
-        total += msg_tokens
-    
-    return kept_messages
-
-# Chat input
+# Chat input with error handling
 if prompt := st.chat_input("Type your message..."):
-    is_valid, error_msg = validate_input(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user", avatar=user_avatar):
+        st.markdown(prompt)
     
-    if not is_valid:
-        st.error(error_msg)
-    else:
-        # Add user message
-        user_tokens = count_tokens(prompt)
-        st.session_state.messages.append({
-            "role": "user",
-            "content": prompt,
-            "tokens": user_tokens
-        })
-        st.session_state.total_tokens += user_tokens
-        
-        # Display user message
-        with st.chat_message("user"):
-            st.write(prompt)
-        
-        # Get assistant response
-        with st.chat_message("assistant"):
-            try:
-                # Prepare messages with system prompt
-                system_msg = {"role": "system", "content": PERSONALITIES[personality]}
-                context_msgs = manage_context(st.session_state.messages)
-                api_messages = [system_msg] + context_msgs
+    with st.chat_message("assistant", avatar=assistant_avatar):
+        try:
+            if simulate_error:
+                raise Exception("Simulated API error: Service temporarily unavailable (429)")
+            
+            def stream_generator():
+                conversation = "\\n\\n".join([
+                    f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
+                    for msg in st.session_state.messages
+                ])
                 
-                # Stream response
-                stream = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=api_messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=True
-                )
-                
-                response = st.write_stream(stream)
-                
-                # Add to history
-                assistant_tokens = count_tokens(response)
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response,
-                    "tokens": assistant_tokens
-                })
-                st.session_state.total_tokens += assistant_tokens
-                
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
+                full_prompt = f\"\"\"{st.session_state.system_prompt}
 
-# Footer
+Here is the conversation so far:
+{conversation}
+
+Respond to the user's latest message.\"\"\"
+                
+                response_text = call_llm(full_prompt)
+                for word in response_text.split(" "):
+                    yield word + " "
+                    time.sleep(0.02)
+            
+            with st.spinner("Processing"):
+                response = st.write_stream(stream_generator)
+            
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            st.rerun()
+            
+        except Exception as e:
+            error_message = f"I encountered an error: {str(e)}"
+            st.error(error_message)
+            st.info(":material/lightbulb: **Tip:** Try again in a moment, or rephrase your question.")
+
 st.divider()
-st.caption("💡 Tip: Use the sidebar to customize the bot's behavior")
+st.caption("Day 14: Adding Avatars and Error Handling | 30 Days of AI")
 """, language="python")
 
-st.header("🎨 Enhancement Checklist")
-
-checklist = {
-    "Core Features": [
-        "Streaming responses",
-        "Message history",
-        "Context management",
-        "Error handling"
-    ],
-    "Customization": [
-        "Multiple personalities",
-        "Temperature control",
-        "Token limits",
-        "Custom avatars"
-    ],
-    "User Experience": [
-        "Input validation",
-        "Loading indicators",
-        "Token counter",
-        "Clear chat button"
-    ],
-    "Advanced": [
-        "Export chat history",
-        "Import conversations",
-        "Conversation naming",
-        "Search in history"
-    ]
-}
-
-for category, items in checklist.items():
-    with st.expander(f"**{category}**"):
-        for item in items:
-            st.checkbox(item, key=f"check_{category}_{item}")
-
-st.header("🚀 Deployment Preparation")
-st.markdown("""
-Before deploying your chatbot:
-
-1. **Security**
-   - [ ] API keys in secrets
-   - [ ] Input sanitization
-   - [ ] Rate limiting
-   - [ ] Error handling
-
-2. **Performance**
-   - [ ] Caching implemented
-   - [ ] Context optimization
-   - [ ] Token management
-   - [ ] Lazy loading
-
-3. **User Experience**
-   - [ ] Loading states
-   - [ ] Error messages
-   - [ ] Mobile responsive
-   - [ ] Accessibility
-
-4. **Testing**
-   - [ ] Edge cases
-   - [ ] Long conversations
-   - [ ] Error scenarios
-   - [ ] Multiple users
-""")
-
 st.markdown("---")
-st.success("🎉 Complete this project to finish Section 2!")
+
+# Working Demo
+st.header("💬 Try It Yourself!")
+st.caption("Using Snowflake connection with avatars and error handling")
+
+try:
+    # Connect to Snowflake
+    if 'session' not in st.session_state:
+        try:
+            from snowflake.snowpark.context import get_active_session
+            st.session_state.session = get_active_session()
+        except:
+            from snowflake.snowpark import Session
+            if "connections" in st.secrets and "snowflake" in st.secrets["connections"]:
+                st.session_state.session = Session.builder.configs(
+                    st.secrets["connections"]["snowflake"]
+                ).create()
+            else:
+                raise Exception("No Snowflake connection configured in secrets.toml")
+    
+    session = st.session_state.session
+
+    def call_llm(prompt_text: str) -> str:
+        """Call Snowflake Cortex LLM."""
+        df = session.range(1).select(
+            ai_complete(model="claude-3-5-sonnet", prompt=prompt_text).alias("response")
+        )
+        response_raw = df.collect()[0][0]
+        response_json = json.loads(response_raw)
+        if isinstance(response_json, dict):
+            return response_json.get("choices", [{}])[0].get("messages", "")
+        return str(response_json)
+
+    # Initialize system prompt if not exists
+    if "system_prompt" not in st.session_state:
+        st.session_state.system_prompt = "You are a helpful assistant."
+
+    # Initialize messages
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello! I'm your AI assistant. How can I help you today?"}
+        ]
+
+    # Sidebar configuration
+    with st.sidebar:
+        st.header(":material/settings: Settings")
+        
+        # Avatar customization
+        st.subheader(":material/palette: Avatars")
+        user_avatar = st.selectbox(
+            "Your Avatar:",
+            ["👤", "👨‍💻", "👩‍💻", "🙋‍♂️", "🧑", "😊"],
+            index=0
+        )
+        
+        assistant_avatar = st.selectbox(
+            "Assistant Avatar:",
+            ["🤖", "🦾", "⚡", "💡", "🎯", "✨"],
+            index=0
+        )
+        
+        st.divider()
+        
+        # System prompt
+        st.subheader(":material/description: System Prompt")
+        st.text_area(
+            "Customize behavior:",
+            height=100,
+            key="system_prompt",
+            help="Define how the AI should behave and respond"
+        )
+        
+        st.divider()
+        
+        # Debug toggle to simulate errors
+        st.subheader(":material/bug_report: Debug Mode")
+        simulate_error = st.checkbox(
+            "Simulate API Error",
+            value=False,
+            help="Enable this to test the error handling mechanism"
+        )
+        
+        st.divider()
+        
+        # Conversation stats
+        st.header("Conversation Stats")
+        user_msgs = len([m for m in st.session_state.messages if m["role"] == "user"])
+        assistant_msgs = len([m for m in st.session_state.messages if m["role"] == "assistant"])
+        st.metric("Your Messages", user_msgs)
+        st.metric("AI Responses", assistant_msgs)
+        
+        if st.button("Clear History"):
+            st.session_state.messages = [
+                {"role": "assistant", "content": "Hello! I'm your AI assistant. How can I help you today?"}
+            ]
+            st.rerun()
+
+    # Display all messages from history with custom avatars
+    for message in st.session_state.messages:
+        avatar = user_avatar if message["role"] == "user" else assistant_avatar
+        with st.chat_message(message["role"], avatar=avatar):
+            st.markdown(message["content"])
+
+    # Chat input
+    if prompt := st.chat_input("Type your message..."):
+        # Add and display user message
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user", avatar=user_avatar):
+            st.markdown(prompt)
+        
+        # Generate response with error handling
+        with st.chat_message("assistant", avatar=assistant_avatar):
+            try:
+                # Simulate error if debug mode is enabled
+                if simulate_error:
+                    raise Exception("Simulated API error: Service temporarily unavailable (429)")
+                
+                # Custom generator for reliable streaming
+                def stream_generator():
+                    # Build the full conversation history for context
+                    conversation = "\n\n".join([
+                        f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
+                        for msg in st.session_state.messages
+                    ])
+                    
+                    # Create prompt with system instruction
+                    full_prompt = f"""{st.session_state.system_prompt}
+
+Here is the conversation so far:
+{conversation}
+
+Respond to the user's latest message."""
+                    
+                    response_text = call_llm(full_prompt)
+                    for word in response_text.split(" "):
+                        yield word + " "
+                        time.sleep(0.02)
+                
+                with st.spinner("Processing"):
+                    response = st.write_stream(stream_generator)
+                
+                # Add assistant response to state
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.rerun()  # Force rerun to update sidebar stats
+                
+            except Exception as e:
+                error_message = f"I encountered an error: {str(e)}"
+                st.error(error_message)
+                st.info(":material/lightbulb: **Tip:** This might be a temporary issue. Try again in a moment, or rephrase your question.")
+
+    st.divider()
+    st.caption("Day 14: Adding Avatars and Error Handling | 30 Days of AI")
+
+except Exception as e:
+    st.error(f"❌ Connection Error: {str(e)}")
+    st.info("💡 Make sure your Snowflake connection is properly configured in secrets.toml")
 
 st.markdown(
     '''
     <style>
     .streamlit-expanderHeader {
         background-color: blue;
-        color: white; # Adjust this for expander header color
+        color: white;
     }
     .streamlit-expanderContent {
         background-color: blue;
-        color: white; # Expander content color
+        color: white;
     }
     </style>
     ''',
