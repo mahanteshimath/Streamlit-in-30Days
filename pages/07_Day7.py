@@ -133,19 +133,12 @@ try:
         key="default_content"
     )
     
-    # Sidebar configuration
-    with st.sidebar:
-        st.title(":material/post_add: LinkedIn Post Generator")
-        st.success("An app for generating LinkedIn post using content from input link.")
-        
-        st.markdown("---")
-        st.subheader("⚙️ Configuration")
-        
+    # Configuration in main area
+    col1, col2 = st.columns(2)
+    with col1:
         tone = st.selectbox("Tone:", ["Professional", "Casual", "Funny"], key="default_tone")
+    with col2:
         word_count = st.slider("Approximate word count:", 50, 300, 100, key="default_word_count")
-        
-        st.markdown("---")
-        st.info("💡 **Tip:** This demo shows sidebar layout and theming!")
     
     # Generate button
     if st.button("Generate Post", type="primary"):

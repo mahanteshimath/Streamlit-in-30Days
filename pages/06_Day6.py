@@ -351,46 +351,6 @@ if 'custom_session' in st.session_state:
 # Footer
 st.divider()
 st.caption("Day 6: Status UI for Long-Running Task | 30 Days of AI")
-with col3:
-    if st.button("🔄 Reset"):
-        st.session_state.demo_counter = 0
-
-st.metric("Counter Value", st.session_state.demo_counter)
-
-st.subheader("Common Patterns")
-st.code("""
-# Dictionary initialization
-defaults = {
-    'username': '',
-    'messages': [],
-    'logged_in': False
-}
-
-for key, value in defaults.items():
-    if key not in st.session_state:
-        st.session_state[key] = value
-
-# Callback functions
-def on_submit():
-    st.session_state.submitted = True
-    st.session_state.form_data = get_form_data()
-
-st.button("Submit", on_click=on_submit)
-
-# Delete from session state
-if st.button("Logout"):
-    del st.session_state['username']
-    # or: st.session_state.pop('username', None)
-""", language="python")
-
-st.subheader("Widget State")
-st.markdown("Widgets can automatically use session state with the `key` parameter:")
-
-name = st.text_input("Name:", key="user_name")
-st.write(f"Stored in session state: {st.session_state.user_name}")
-
-st.markdown("---")
-st.info("✅ Practice using session state in your apps!")
 
 st.markdown(
     '''
