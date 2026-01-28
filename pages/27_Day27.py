@@ -265,36 +265,64 @@ if not session:
     st.error("❌ No Snowflake session available")
     st.stop()
 
-# Check if agent exists
-try:
-    agents = session.sql(f'SHOW AGENTS IN SCHEMA "{DB_NAME}"."{SCHEMA_NAME}"').collect()
-    agent_names = [row['name'] for row in agents]
+# Setup verification section with clear reference to Day 26
+with st.container(border=True):
+    st.markdown("### :material/check_circle: Setup Status")
     
-    if AGENT_NAME in agent_names:
-        st.success(f"✅ Connected to agent: **{AGENT_NAME}**", icon=":material/check_circle:")
-    else:
-        st.error(f"❌ Agent '{AGENT_NAME}' not found!", icon=":material/error:")
-        st.warning("Go to Day 26 and create the agent first.")
-        st.stop()
-except Exception as e:
-    st.error(f"Cannot verify agent: {e}")
-    st.stop()
-
-# Check data
-try:
-    convo_count = session.sql(f'SELECT COUNT(*) as cnt FROM "{DB_NAME}"."{SCHEMA_NAME}".SALES_CONVERSATIONS').collect()[0]['CNT']
-    metrics_count = session.sql(f'SELECT COUNT(*) as cnt FROM "{DB_NAME}"."{SCHEMA_NAME}".SALES_METRICS').collect()[0]['CNT']
+    col1, col2, col3 = st.columns(3)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"💬 Conversations: **{convo_count}** records" if convo_count > 0 else "⚠️ No conversation data")
-    with col2:
-        if metrics_count > 0:
-            st.info(f"📊 Metrics: **{metrics_count}** records")
+    # Check agent
+    agent_exists = False
+    try:
+        agents = session.sql(f'SHOW AGENTS IN SCHEMA "{DB_NAME}"."{SCHEMA_NAME}"').collect()
+        agent_names = [row['name'] for row in agents]
+        
+        if AGENT_NAME in agent_names:
+            agent_exists = True
+            with col1:
+                st.success(f"✅ **Agent Ready**\n{AGENT_NAME}", icon=":material/check_circle:")
         else:
-            st.error("❌ SALES_METRICS is empty! Run Step 4 in Day 26")
-except:
-    pass
+            with col1:
+                st.error(f"❌ **Agent Missing**\n'{AGENT_NAME}' not found")
+    except Exception as e:
+        with col1:
+            st.error(f"❌ **Cannot Check Agent**\n{str(e)[:50]}")
+    
+    # Check data
+    try:
+        convo_count = session.sql(f'SELECT COUNT(*) as cnt FROM "{DB_NAME}"."{SCHEMA_NAME}".SALES_CONVERSATIONS').collect()[0]['CNT']
+        metrics_count = session.sql(f'SELECT COUNT(*) as cnt FROM "{DB_NAME}"."{SCHEMA_NAME}".SALES_METRICS').collect()[0]['CNT']
+        
+        with col2:
+            if convo_count > 0:
+                st.success(f"✅ **Conversations**\n{convo_count} records", icon=":material/check_circle:")
+            else:
+                st.error(f"❌ **No Conversations**\n0 records")
+        
+        with col3:
+            if metrics_count > 0:
+                st.success(f"✅ **Metrics**\n{metrics_count} records", icon=":material/check_circle:")
+            else:
+                st.error(f"❌ **No Metrics**\n0 records")
+    except Exception as e:
+        with col2:
+            st.error(f"❌ **Data Check Failed**")
+        with col3:
+            st.empty()
+    
+    # Guide user if setup incomplete
+    if not agent_exists:
+        st.error("⚠️ **Setup incomplete!** Go to **Day 26** and complete all 5 steps:")
+        st.markdown("""
+        1. Create Database & Schema
+        2. Create Sales Conversations Table
+        3. Create Cortex Search Service
+        4. Create Sales Metrics Table
+        5. Upload Semantic Model YAML
+        """)
+        st.stop()
+    
+    st.info("✨ All systems ready! Start asking questions about your sales data below.")
 
 st.session_state.setdefault("messages", [])
 
