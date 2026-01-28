@@ -18,27 +18,11 @@ except:
     try:
         import requests
         from snowflake.snowpark import Session
-        
-        # Check if secrets are available
-        if "connections" in st.secrets and "snowflake" in st.secrets["connections"]:
-            session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
-            conn = session._conn._conn
-            HOST, TOKEN = conn.host, conn.rest.token
-        else:
-            st.error("❌ Snowflake secrets not configured. Please add 'connections.snowflake' to your .streamlit/secrets.toml")
-            st.stop()
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+        conn = session._conn._conn
+        HOST, TOKEN = conn.host, conn.rest.token
     except Exception as e:
         st.error(f"❌ Failed to create Snowflake session: {str(e)}")
-        st.info("To configure Snowflake connection, add this to .streamlit/secrets.toml:")
-        st.code("""
-[connections.snowflake]
-account = "your_account"
-user = "your_user"
-password = "your_password"
-warehouse = "your_warehouse"
-database = "CHANINN_SALES_INTELLIGENCE"
-schema = "DATA"
-        """, language="toml")
         st.stop()
 
 # Config
