@@ -5,17 +5,41 @@ st.set_page_config(page_title="Day 27 - Agent Orchestration", page_icon="2️⃣
 
 # Environment detection and connection setup
 IS_SIS = False
+session = None
+HOST = None
+TOKEN = None
+
 try:
     from snowflake.snowpark.context import get_active_session
     import _snowflake
     session = get_active_session()
     IS_SIS = True
 except:
-    import requests
-    from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
-    conn = session._conn._conn
-    HOST, TOKEN = conn.host, conn.rest.token
+    try:
+        import requests
+        from snowflake.snowpark import Session
+        
+        # Check if secrets are available
+        if "connections" in st.secrets and "snowflake" in st.secrets["connections"]:
+            session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+            conn = session._conn._conn
+            HOST, TOKEN = conn.host, conn.rest.token
+        else:
+            st.error("❌ Snowflake secrets not configured. Please add 'connections.snowflake' to your .streamlit/secrets.toml")
+            st.stop()
+    except Exception as e:
+        st.error(f"❌ Failed to create Snowflake session: {str(e)}")
+        st.info("To configure Snowflake connection, add this to .streamlit/secrets.toml:")
+        st.code("""
+[connections.snowflake]
+account = "your_account"
+user = "your_user"
+password = "your_password"
+warehouse = "your_warehouse"
+database = "CHANINN_SALES_INTELLIGENCE"
+schema = "DATA"
+        """, language="toml")
+        st.stop()
 
 # Config
 DB_NAME = "CHANINN_SALES_INTELLIGENCE"
@@ -121,6 +145,10 @@ def call_agent(query: str):
         
         else:
             # External environment
+            if not HOST or not TOKEN:
+                result["text"] = ":material/error: Snowflake connection not configured. Please check your secrets."
+                return result
+            
             resp = requests.post(
                 f"https://{HOST}{AGENT_ENDPOINT}",
                 json=payload,
@@ -231,6 +259,11 @@ with st.sidebar:
 # Main
 st.title(":material/construction: Multi-Tool Agent Orchestration")
 st.write("The agent uses **orchestration** to automatically choose between Cortex Search (conversations) and Cortex Analyst (metrics).")
+
+# Check if session is available
+if not session:
+    st.error("❌ No Snowflake session available")
+    st.stop()
 
 # Check if agent exists
 try:
