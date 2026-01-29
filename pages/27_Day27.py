@@ -18,7 +18,7 @@ except:
     try:
         import requests
         from snowflake.snowpark import Session
-        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+        session = Session.builder.configs(st.secrets["connections"]["my_example_connection"]).create()
         conn = session._conn._conn
         HOST, TOKEN = conn.host, conn.rest.token
     except Exception as e:
