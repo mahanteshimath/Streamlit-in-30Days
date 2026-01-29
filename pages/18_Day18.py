@@ -11,77 +11,77 @@ st.markdown("---")
 
 # Code example section
 st.header("🚀 Quick Start - Generate Embeddings")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    import streamlit as st
+    from snowflake.cortex import embed_text_768
+    import pandas as pd
 
-st.code("""
-import streamlit as st
-from snowflake.cortex import embed_text_768
-import pandas as pd
+    # Connect to Snowflake
+    try:
+        from snowflake.snowpark.context import get_active_session
+        session = get_active_session()
+    except:
+        from snowflake.snowpark import Session
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
 
-# Connect to Snowflake
-try:
-    from snowflake.snowpark.context import get_active_session
-    session = get_active_session()
-except:
-    from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    st.title(":material/calculate: Embeddings Generator for Customer Reviews")
+    st.write("Generate embeddings for review chunks from Day 17 to enable semantic search.")
 
-st.title(":material/calculate: Embeddings Generator for Customer Reviews")
-st.write("Generate embeddings for review chunks from Day 17 to enable semantic search.")
+    # Load chunks from database
+    database = "RAG_DB"
+    schema = "RAG_SCHEMA"
+    chunk_table = "REVIEW_CHUNKS"
 
-# Load chunks from database
-database = "RAG_DB"
-schema = "RAG_SCHEMA"
-chunk_table = "REVIEW_CHUNKS"
-
-query = f\"\"\"
-SELECT CHUNK_ID, CHUNK_TEXT
-FROM {database}.{schema}.{chunk_table}
-ORDER BY CHUNK_ID
-\"\"\"
-df = session.sql(query).to_pandas()
-
-st.success(f"Loaded {len(df)} chunks")
-
-# Generate embeddings
-embeddings = []
-for idx, row in df.iterrows():
-    emb = embed_text_768(model='snowflake-arctic-embed-m', text=row['CHUNK_TEXT'])
-    embeddings.append({
-        'chunk_id': row['CHUNK_ID'],
-        'embedding': emb
-    })
-
-st.success(f"Generated {len(embeddings)} embeddings")
-
-# Save to Snowflake
-embedding_table = f"{database}.{schema}.REVIEW_EMBEDDINGS"
-
-# Create table
-create_sql = f\"\"\"
-CREATE OR REPLACE TABLE {embedding_table} (
-    CHUNK_ID NUMBER,
-    EMBEDDING VECTOR(FLOAT, 768),
-    CREATED_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-)
-\"\"\"
-session.sql(create_sql).collect()
-
-# Insert embeddings
-for emb_data in embeddings:
-    emb_list = list(emb_data['embedding'])
-    emb_array = "[" + ",".join([str(float(x)) for x in emb_list]) + "]"
-    
-    insert_sql = f\"\"\"
-    INSERT INTO {embedding_table} (CHUNK_ID, EMBEDDING)
-    SELECT {emb_data['chunk_id']}, {emb_array}::VECTOR(FLOAT, 768)
+    query = f\"\"\"
+    SELECT CHUNK_ID, CHUNK_TEXT
+    FROM {database}.{schema}.{chunk_table}
+    ORDER BY CHUNK_ID
     \"\"\"
-    session.sql(insert_sql).collect()
+    df = session.sql(query).to_pandas()
 
-st.success("Embeddings saved to Snowflake!")
+    st.success(f"Loaded {len(df)} chunks")
 
-st.divider()
-st.caption("Day 18: Generating Embeddings for Customer Reviews | 30 Days of AI")
-""", language="python")
+    # Generate embeddings
+    embeddings = []
+    for idx, row in df.iterrows():
+        emb = embed_text_768(model='snowflake-arctic-embed-m', text=row['CHUNK_TEXT'])
+        embeddings.append({
+            'chunk_id': row['CHUNK_ID'],
+            'embedding': emb
+        })
+
+    st.success(f"Generated {len(embeddings)} embeddings")
+
+    # Save to Snowflake
+    embedding_table = f"{database}.{schema}.REVIEW_EMBEDDINGS"
+
+    # Create table
+    create_sql = f\"\"\"
+    CREATE OR REPLACE TABLE {embedding_table} (
+        CHUNK_ID NUMBER,
+        EMBEDDING VECTOR(FLOAT, 768),
+        CREATED_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    )
+    \"\"\"
+    session.sql(create_sql).collect()
+
+    # Insert embeddings
+    for emb_data in embeddings:
+        emb_list = list(emb_data['embedding'])
+        emb_array = "[" + ",".join([str(float(x)) for x in emb_list]) + "]"
+        
+        insert_sql = f\"\"\"
+        INSERT INTO {embedding_table} (CHUNK_ID, EMBEDDING)
+        SELECT {emb_data['chunk_id']}, {emb_array}::VECTOR(FLOAT, 768)
+        \"\"\"
+        session.sql(insert_sql).collect()
+
+    st.success("Embeddings saved to Snowflake!")
+
+    st.divider()
+    st.caption("Day 18: Generating Embeddings for Customer Reviews | 30 Days of AI")
+    """, language="python")
 
 st.markdown("---")
 

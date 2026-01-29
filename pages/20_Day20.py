@@ -9,53 +9,53 @@ st.markdown("---")
 
 # Code example section
 st.header("🚀 Quick Start - Query Cortex Search")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    import streamlit as st
+    from snowflake.core import Root
 
-st.code("""
-import streamlit as st
-from snowflake.core import Root
+    # Connect to Snowflake
+    try:
+        from snowflake.snowpark.context import get_active_session
+        session = get_active_session()
+    except:
+        from snowflake.snowpark import Session
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
 
-# Connect to Snowflake
-try:
-    from snowflake.snowpark.context import get_active_session
-    session = get_active_session()
-except:
-    from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    st.title(":material/search: Querying Cortex Search")
+    st.write("Search and retrieve relevant text chunks using Cortex Search Service.")
 
-st.title(":material/search: Querying Cortex Search")
-st.write("Search and retrieve relevant text chunks using Cortex Search Service.")
+    # Configure search
+    search_service = 'RAG_DB.RAG_SCHEMA.CUSTOMER_REVIEW_SEARCH'
+    query = st.text_input("Enter your search query:", value="warm thermal gloves")
+    num_results = st.slider("Number of results:", 1, 20, 5)
 
-# Configure search
-search_service = 'RAG_DB.RAG_SCHEMA.CUSTOMER_REVIEW_SEARCH'
-query = st.text_input("Enter your search query:", value="warm thermal gloves")
-num_results = st.slider("Number of results:", 1, 20, 5)
+    if st.button("Search"):
+        root = Root(session)
+        parts = search_service.split(".")
+        
+        svc = (root
+            .databases[parts[0]]
+            .schemas[parts[1]]
+            .cortex_search_services[parts[2]])
+        
+        results = svc.search(
+            query=query,
+            columns=["CHUNK_TEXT", "FILE_NAME", "CHUNK_TYPE", "CHUNK_ID"],
+            limit=num_results
+        )
+        
+        st.success(f"Found {len(results.results)} result(s)!")
+        
+        # Display results
+        for i, item in enumerate(results.results, 1):
+            st.markdown(f"**Result {i}** - {item.get('FILE_NAME', 'N/A')}")
+            st.write(item.get("CHUNK_TEXT", "No text found"))
+            st.divider()
 
-if st.button("Search"):
-    root = Root(session)
-    parts = search_service.split(".")
-    
-    svc = (root
-        .databases[parts[0]]
-        .schemas[parts[1]]
-        .cortex_search_services[parts[2]])
-    
-    results = svc.search(
-        query=query,
-        columns=["CHUNK_TEXT", "FILE_NAME", "CHUNK_TYPE", "CHUNK_ID"],
-        limit=num_results
-    )
-    
-    st.success(f"Found {len(results.results)} result(s)!")
-    
-    # Display results
-    for i, item in enumerate(results.results, 1):
-        st.markdown(f"**Result {i}** - {item.get('FILE_NAME', 'N/A')}")
-        st.write(item.get("CHUNK_TEXT", "No text found"))
-        st.divider()
-
-st.divider()
-st.caption("Day 20: Querying Cortex Search | 30 Days of AI")
-""", language="python")
+    st.divider()
+    st.caption("Day 20: Querying Cortex Search | 30 Days of AI")
+    """, language="python")
 
 st.markdown("---")
 

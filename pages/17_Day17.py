@@ -11,69 +11,70 @@ st.markdown("---")
 # Code example section
 st.header("🚀 Quick Start - Prepare and Chunk Data for RAG")
 
-st.code("""
-import streamlit as st
-import pandas as pd
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    import streamlit as st
+    import pandas as pd
 
-# Connect to Snowflake
-try:
-    from snowflake.snowpark.context import get_active_session
-    session = get_active_session()
-except:
-    from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    # Connect to Snowflake
+    try:
+        from snowflake.snowpark.context import get_active_session
+        session = get_active_session()
+    except:
+        from snowflake.snowpark import Session
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
 
-st.title(":material/sync: Prepare and Chunk Data for RAG")
-st.write("Load customer reviews from Day 16, process them, and prepare searchable chunks for RAG.")
+    st.title(":material/sync: Prepare and Chunk Data for RAG")
+    st.write("Load customer reviews from Day 16, process them, and prepare searchable chunks for RAG.")
 
-# Load reviews from database
-database = "RAG_DB"
-schema = "RAG_SCHEMA"
-table_name = "EXTRACTED_DOCUMENTS"
+    # Load reviews from database
+    database = "RAG_DB"
+    schema = "RAG_SCHEMA"
+    table_name = "EXTRACTED_DOCUMENTS"
 
-query = f\"\"\"
-SELECT DOC_ID, FILE_NAME, EXTRACTED_TEXT, WORD_COUNT
-FROM {database}.{schema}.{table_name}
-ORDER BY FILE_NAME
-\"\"\"
-df = session.sql(query).to_pandas()
+    query = f\"\"\"
+    SELECT DOC_ID, FILE_NAME, EXTRACTED_TEXT, WORD_COUNT
+    FROM {database}.{schema}.{table_name}
+    ORDER BY FILE_NAME
+    \"\"\"
+    df = session.sql(query).to_pandas()
 
-st.success(f"Loaded {len(df)} reviews")
+    st.success(f"Loaded {len(df)} reviews")
 
-# Process reviews into chunks
-chunks = []
-chunk_id = 1
+    # Process reviews into chunks
+    chunks = []
+    chunk_id = 1
 
-for idx, row in df.iterrows():
-    chunks.append({
-        'doc_id': row['DOC_ID'],
-        'file_name': row['FILE_NAME'],
-        'chunk_id': chunk_id,
-        'chunk_text': row['EXTRACTED_TEXT'],
-        'chunk_size': row['WORD_COUNT'],
-        'chunk_type': 'full_review'
-    })
-    chunk_id += 1
+    for idx, row in df.iterrows():
+        chunks.append({
+            'doc_id': row['DOC_ID'],
+            'file_name': row['FILE_NAME'],
+            'chunk_id': chunk_id,
+            'chunk_text': row['EXTRACTED_TEXT'],
+            'chunk_size': row['WORD_COUNT'],
+            'chunk_type': 'full_review'
+        })
+        chunk_id += 1
 
-st.success(f"Created {len(chunks)} chunks")
+    st.success(f"Created {len(chunks)} chunks")
 
-# Save chunks to new table
-chunks_df = pd.DataFrame(chunks)
-chunks_df.columns = ['CHUNK_ID', 'DOC_ID', 'FILE_NAME', 'CHUNK_TEXT', 'CHUNK_SIZE', 'CHUNK_TYPE']
+    # Save chunks to new table
+    chunks_df = pd.DataFrame(chunks)
+    chunks_df.columns = ['CHUNK_ID', 'DOC_ID', 'FILE_NAME', 'CHUNK_TEXT', 'CHUNK_SIZE', 'CHUNK_TYPE']
 
-session.write_pandas(
-    chunks_df,
-    table_name="REVIEW_CHUNKS",
-    database=database,
-    schema=schema,
-    overwrite=True
-)
+    session.write_pandas(
+        chunks_df,
+        table_name="REVIEW_CHUNKS",
+        database=database,
+        schema=schema,
+        overwrite=True
+    )
 
-st.success("Chunks saved to Snowflake!")
+    st.success("Chunks saved to Snowflake!")
 
-st.divider()
-st.caption("Day 17: Loading and Transforming Customer Reviews for RAG | 30 Days of AI")
-""", language="python")
+    st.divider()
+    st.caption("Day 17: Loading and Transforming Customer Reviews for RAG | 30 Days of AI")
+    """, language="python")
 
 st.markdown("---")
 

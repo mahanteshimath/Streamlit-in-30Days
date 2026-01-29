@@ -10,68 +10,68 @@ st.markdown("---")
 
 # Code example section
 st.header("🚀 Quick Start - Cortex Search Service")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    import streamlit as st
+    from snowflake.core import Root
 
-st.code("""
-import streamlit as st
-from snowflake.core import Root
+    # Connect to Snowflake
+    try:
+        from snowflake.snowpark.context import get_active_session
+        session = get_active_session()
+    except:
+        from snowflake.snowpark import Session
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
 
-# Connect to Snowflake
-try:
-    from snowflake.snowpark.context import get_active_session
-    session = get_active_session()
-except:
-    from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    st.title(":material/search: Cortex Search for Customer Reviews")
+    st.write("Create a semantic search service for customer reviews.")
 
-st.title(":material/search: Cortex Search for Customer Reviews")
-st.write("Create a semantic search service for customer reviews.")
+    database = "RAG_DB"
+    schema = "RAG_SCHEMA"
 
-database = "RAG_DB"
-schema = "RAG_SCHEMA"
-
-# Step 1: Create a searchable view
-create_view_sql = f\"\"\"
-CREATE OR REPLACE VIEW {database}.{schema}.REVIEW_SEARCH_VIEW AS
-SELECT 
-    rc.CHUNK_ID,
-    rc.CHUNK_TEXT,
-    rc.FILE_NAME,
-    rc.DOC_ID,
-    rc.CHUNK_TYPE
-FROM {database}.{schema}.REVIEW_CHUNKS rc
-WHERE rc.CHUNK_TEXT IS NOT NULL
-\"\"\"
-session.sql(create_view_sql).collect()
-st.success("Created search view")
-
-# Step 2: Create Cortex Search Service
-create_service_sql = f\"\"\"
-CREATE OR REPLACE CORTEX SEARCH SERVICE {database}.{schema}.CUSTOMER_REVIEW_SEARCH
-    ON CHUNK_TEXT
-    ATTRIBUTES FILE_NAME, CHUNK_TYPE
-    WAREHOUSE = COMPUTE_WH
-    TARGET_LAG = '1 hour'
-AS (
+    # Step 1: Create a searchable view
+    create_view_sql = f\"\"\"
+    CREATE OR REPLACE VIEW {database}.{schema}.REVIEW_SEARCH_VIEW AS
     SELECT 
-        CHUNK_TEXT,
-        FILE_NAME,
-        CHUNK_TYPE,
-        CHUNK_ID
-    FROM {database}.{schema}.REVIEW_SEARCH_VIEW
-)
-\"\"\"
-session.sql(create_service_sql).collect()
-st.success("Created search service!")
+        rc.CHUNK_ID,
+        rc.CHUNK_TEXT,
+        rc.FILE_NAME,
+        rc.DOC_ID,
+        rc.CHUNK_TYPE
+    FROM {database}.{schema}.REVIEW_CHUNKS rc
+    WHERE rc.CHUNK_TEXT IS NOT NULL
+    \"\"\"
+    session.sql(create_view_sql).collect()
+    st.success("Created search view")
 
-# Step 3: Verify the service
-result = session.sql(f"SHOW CORTEX SEARCH SERVICES IN SCHEMA {database}.{schema}").collect()
-st.dataframe(result)
+    # Step 2: Create Cortex Search Service
+    create_service_sql = f\"\"\"
+    CREATE OR REPLACE CORTEX SEARCH SERVICE {database}.{schema}.CUSTOMER_REVIEW_SEARCH
+        ON CHUNK_TEXT
+        ATTRIBUTES FILE_NAME, CHUNK_TYPE
+        WAREHOUSE = COMPUTE_WH
+        TARGET_LAG = '1 hour'
+    AS (
+        SELECT 
+            CHUNK_TEXT,
+            FILE_NAME,
+            CHUNK_TYPE,
+            CHUNK_ID
+        FROM {database}.{schema}.REVIEW_SEARCH_VIEW
+    )
+    \"\"\"
+    session.sql(create_service_sql).collect()
+    st.success("Created search service!")
 
-st.divider()
-st.caption("Day 19: Creating Cortex Search for Customer Reviews | 30 Days of AI")
-""", language="python")
+    # Step 3: Verify the service
+    result = session.sql(f"SHOW CORTEX SEARCH SERVICES IN SCHEMA {database}.{schema}").collect()
+    st.dataframe(result)
 
-st.markdown("---")
+    st.divider()
+    st.caption("Day 19: Creating Cortex Search for Customer Reviews | 30 Days of AI")
+    """, language="python")
+
+    st.markdown("---")
 
 # Working Demo
 st.header("💬 Try It Yourself!")

@@ -11,111 +11,111 @@ st.markdown("---")
 
 # Code example section
 st.header("🚀 Quick Start - Batch Document Text Extractor")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    import streamlit as st
+    from pypdf import PdfReader
+    import io
+    import pandas as pd
 
-st.code("""
-import streamlit as st
-from pypdf import PdfReader
-import io
-import pandas as pd
+    # Connect to Snowflake
+    try:
+        from snowflake.snowpark.context import get_active_session
+        session = get_active_session()
+    except:
+        from snowflake.snowpark import Session
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
 
-# Connect to Snowflake
-try:
-    from snowflake.snowpark.context import get_active_session
-    session = get_active_session()
-except:
-    from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    st.title(":material/description: Batch Document Text Extractor")
+    st.write("Upload multiple documents at once to extract text and save to Snowflake for RAG applications.")
 
-st.title(":material/description: Batch Document Text Extractor")
-st.write("Upload multiple documents at once to extract text and save to Snowflake for RAG applications.")
+    # Initialize session state for database configuration
+    if 'database' not in st.session_state:
+        st.session_state.database = "RAG_DB"
+    if 'schema' not in st.session_state:
+        st.session_state.schema = "RAG_SCHEMA"
+    if 'table_name' not in st.session_state:
+        st.session_state.table_name = "EXTRACTED_DOCUMENTS"
 
-# Initialize session state for database configuration
-if 'database' not in st.session_state:
-    st.session_state.database = "RAG_DB"
-if 'schema' not in st.session_state:
-    st.session_state.schema = "RAG_SCHEMA"
-if 'table_name' not in st.session_state:
-    st.session_state.table_name = "EXTRACTED_DOCUMENTS"
+    # File uploader
+    uploaded_files = st.file_uploader(
+        "Choose file(s)",
+        type=["txt", "md", "pdf"],
+        accept_multiple_files=True
+    )
 
-# File uploader
-uploaded_files = st.file_uploader(
-    "Choose file(s)",
-    type=["txt", "md", "pdf"],
-    accept_multiple_files=True
-)
-
-if uploaded_files and st.button("Extract Text"):
-    extracted_data = []
-    
-    for uploaded_file in uploaded_files:
-        try:
-            # Determine file type
-            if uploaded_file.name.lower().endswith('.txt'):
-                file_type = "TXT"
-                extracted_text = uploaded_file.read().decode("utf-8")
-            elif uploaded_file.name.lower().endswith('.md'):
-                file_type = "Markdown"
-                extracted_text = uploaded_file.read().decode("utf-8")
-            elif uploaded_file.name.lower().endswith('.pdf'):
-                file_type = "PDF"
-                pdf_reader = PdfReader(io.BytesIO(uploaded_file.read()))
-                extracted_text = ""
-                for page in pdf_reader.pages:
-                    extracted_text += page.extract_text() + "\\n\\n"
+    if uploaded_files and st.button("Extract Text"):
+        extracted_data = []
+        
+        for uploaded_file in uploaded_files:
+            try:
+                # Determine file type
+                if uploaded_file.name.lower().endswith('.txt'):
+                    file_type = "TXT"
+                    extracted_text = uploaded_file.read().decode("utf-8")
+                elif uploaded_file.name.lower().endswith('.md'):
+                    file_type = "Markdown"
+                    extracted_text = uploaded_file.read().decode("utf-8")
+                elif uploaded_file.name.lower().endswith('.pdf'):
+                    file_type = "PDF"
+                    pdf_reader = PdfReader(io.BytesIO(uploaded_file.read()))
+                    extracted_text = ""
+                    for page in pdf_reader.pages:
+                        extracted_text += page.extract_text() + "\\n\\n"
+                
+                # Store extracted data
+                extracted_data.append({
+                    'file_name': uploaded_file.name,
+                    'file_type': file_type,
+                    'file_size': uploaded_file.size,
+                    'extracted_text': extracted_text,
+                    'word_count': len(extracted_text.split()),
+                    'char_count': len(extracted_text)
+                })
+            except Exception as e:
+                st.error(f"Error processing {uploaded_file.name}: {str(e)}")
+        
+        # Save to Snowflake
+        if extracted_data:
+            database = st.session_state.database
+            schema = st.session_state.schema
+            table_name = st.session_state.table_name
             
-            # Store extracted data
-            extracted_data.append({
-                'file_name': uploaded_file.name,
-                'file_type': file_type,
-                'file_size': uploaded_file.size,
-                'extracted_text': extracted_text,
-                'word_count': len(extracted_text.split()),
-                'char_count': len(extracted_text)
-            })
-        except Exception as e:
-            st.error(f"Error processing {uploaded_file.name}: {str(e)}")
-    
-    # Save to Snowflake
-    if extracted_data:
-        database = st.session_state.database
-        schema = st.session_state.schema
-        table_name = st.session_state.table_name
-        
-        # Create database and schema
-        session.sql(f"CREATE DATABASE IF NOT EXISTS {database}").collect()
-        session.sql(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}").collect()
-        
-        # Create table
-        create_table_sql = f\"\"\"
-        CREATE TABLE IF NOT EXISTS {database}.{schema}.{table_name} (
-            DOC_ID NUMBER AUTOINCREMENT,
-            FILE_NAME VARCHAR,
-            FILE_TYPE VARCHAR,
-            FILE_SIZE NUMBER,
-            EXTRACTED_TEXT VARCHAR,
-            UPLOAD_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
-            WORD_COUNT NUMBER,
-            CHAR_COUNT NUMBER
-        )
-        \"\"\"
-        session.sql(create_table_sql).collect()
-        
-        # Insert data
-        for data in extracted_data:
-            safe_text = data['extracted_text'].replace("'", "''")
-            insert_sql = f\"\"\"
-            INSERT INTO {database}.{schema}.{table_name}
-            (FILE_NAME, FILE_TYPE, FILE_SIZE, EXTRACTED_TEXT, WORD_COUNT, CHAR_COUNT)
-            VALUES ('{data['file_name']}', '{data['file_type']}', {data['file_size']}, 
-                    '{safe_text}', {data['word_count']}, {data['char_count']})
+            # Create database and schema
+            session.sql(f"CREATE DATABASE IF NOT EXISTS {database}").collect()
+            session.sql(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}").collect()
+            
+            # Create table
+            create_table_sql = f\"\"\"
+            CREATE TABLE IF NOT EXISTS {database}.{schema}.{table_name} (
+                DOC_ID NUMBER AUTOINCREMENT,
+                FILE_NAME VARCHAR,
+                FILE_TYPE VARCHAR,
+                FILE_SIZE NUMBER,
+                EXTRACTED_TEXT VARCHAR,
+                UPLOAD_TIMESTAMP TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+                WORD_COUNT NUMBER,
+                CHAR_COUNT NUMBER
+            )
             \"\"\"
-            session.sql(insert_sql).collect()
-        
-        st.success(f"Successfully saved {len(extracted_data)} document(s)!")
+            session.sql(create_table_sql).collect()
+            
+            # Insert data
+            for data in extracted_data:
+                safe_text = data['extracted_text'].replace("'", "''")
+                insert_sql = f\"\"\"
+                INSERT INTO {database}.{schema}.{table_name}
+                (FILE_NAME, FILE_TYPE, FILE_SIZE, EXTRACTED_TEXT, WORD_COUNT, CHAR_COUNT)
+                VALUES ('{data['file_name']}', '{data['file_type']}', {data['file_size']}, 
+                        '{safe_text}', {data['word_count']}, {data['char_count']})
+                \"\"\"
+                session.sql(insert_sql).collect()
+            
+            st.success(f"Successfully saved {len(extracted_data)} document(s)!")
 
-st.divider()
-st.caption("Day 16: Batch Document Text Extractor for RAG | 30 Days of AI")
-""", language="python")
+    st.divider()
+    st.caption("Day 16: Batch Document Text Extractor for RAG | 30 Days of AI")
+    """, language="python")
 
 st.markdown("---")
 
