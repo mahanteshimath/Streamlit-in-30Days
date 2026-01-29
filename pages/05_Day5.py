@@ -11,57 +11,57 @@ st.markdown("---")
 
 # Default Connection
 st.header("🚀 Quick Start - Default Connection")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    # Import python packages
+    import streamlit as st
+    import time
+    from snowflake.snowpark.context import get_active_session
+    from snowflake.snowpark.functions import ai_complete
 
-st.code("""
-# Import python packages
-import streamlit as st
-import time
-from snowflake.snowpark.context import get_active_session
-from snowflake.snowpark.functions import ai_complete
+    # Get the current credentials
+    session = get_active_session()
 
-# Get the current credentials
-session = get_active_session()
+    # --- App UI ---
+    st.title(":material/post_add: LinkedIn Post Generator")
 
-# --- App UI ---
-st.title(":material/post_add: LinkedIn Post Generator")
+    # Cached LLM Function
+    @st.cache_data
+    def call_cortex_llm(prompt_text):
+        \"\"\"Makes a call to Cortex AI with the given prompt.\"\"\"
+        model = "claude-3-5-sonnet"
+        df = session.range(1).select(
+            ai_complete(model=model, prompt=prompt_text).alias("response")
+        )
+        
+        # Get response (ai_complete returns plain text)
+        response = df.collect()[0][0]
+        return response
 
-# Cached LLM Function
-@st.cache_data
-def call_cortex_llm(prompt_text):
-    \"\"\"Makes a call to Cortex AI with the given prompt.\"\"\"
-    model = "claude-3-5-sonnet"
-    df = session.range(1).select(
-        ai_complete(model=model, prompt=prompt_text).alias("response")
-    )
-    
-    # Get response (ai_complete returns plain text)
-    response = df.collect()[0][0]
-    return response
+    # Input widgets
+    content = st.text_input("Content URL:", "https://docs.snowflake.com/en/user-guide/views-semantic/overview")
+    tone = st.selectbox("Tone:", ["Professional", "Casual", "Funny"])
+    word_count = st.slider("Approximate word count:", 50, 300, 100)
 
-# Input widgets
-content = st.text_input("Content URL:", "https://docs.snowflake.com/en/user-guide/views-semantic/overview")
-tone = st.selectbox("Tone:", ["Professional", "Casual", "Funny"])
-word_count = st.slider("Approximate word count:", 50, 300, 100)
+    # Generate button
+    if st.button("Generate Post"):
+        # Construct the prompt
+        prompt = f\"\"\"
+        You are an expert social media manager. Generate a LinkedIn post based on the following:
 
-# Generate button
-if st.button("Generate Post"):
-    # Construct the prompt
-    prompt = f\"\"\"
-    You are an expert social media manager. Generate a LinkedIn post based on the following:
+        Tone: {tone}
+        Desired Length: Approximately {word_count} words
+        Use content from this URL: {content}
 
-    Tone: {tone}
-    Desired Length: Approximately {word_count} words
-    Use content from this URL: {content}
+        Generate only the LinkedIn post text. Use dash for bullet points.
+        \"\"\"
+        
+        response = call_cortex_llm(prompt)
+        st.subheader("Generated Post:")
+        st.markdown(response)
+    """, language="python")
 
-    Generate only the LinkedIn post text. Use dash for bullet points.
-    \"\"\"
-    
-    response = call_cortex_llm(prompt)
-    st.subheader("Generated Post:")
-    st.markdown(response)
-""", language="python")
-
-st.markdown("---")
+    st.markdown("---")
 
 # Working Demo with Default Connection
 st.header("💬 Try It Yourself!")
@@ -136,18 +136,11 @@ try:
                     
                     st.success(f"✅ *Post generated in {end_time - start_time:.2f} seconds*")
                     
+                    display_response = str(response).replace("\\n", "\n")
                     st.subheader("Generated Post:")
-                    st.markdown(response)
-                    
-                    # Easy copy text area
-                    st.markdown("**📋 Copy from here:**")
-                    st.text_area(
-                        "Click inside and press Ctrl+A to select all, then Ctrl+C to copy",
-                        value=response,
-                        height=200,
-                        key="copy_area_default",
-                        label_visibility="collapsed"
-                    )
+                    with st.container(border=True):
+                        st.markdown(display_response)
+
                     
                     # Show raw response in expander
                     with st.expander("See raw text"):
@@ -282,19 +275,12 @@ if 'custom_session' in st.session_state:
                     
                     st.success(f"✅ *Post generated in {end_time - start_time:.2f} seconds*")
                     
+                    display_custom_response = str(custom_response).replace("\\n", "\n")
                     st.subheader("Generated Post:")
-                    st.markdown(custom_response)
+                    with st.container(border=True):
+                        st.markdown(display_custom_response)
                     
-                    # Easy copy text area
-                    st.markdown("**📋 Copy from here:**")
-                    st.text_area(
-                        "Click inside and press Ctrl+A to select all, then Ctrl+C to copy",
-                        value=custom_response,
-                        height=200,
-                        key="copy_area_custom",
-                        label_visibility="collapsed"
-                    )
-                    
+
                     # Show raw response in expander
                     with st.expander("See raw text"):
                         st.code(custom_response)

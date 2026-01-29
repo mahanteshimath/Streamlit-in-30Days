@@ -10,36 +10,36 @@ st.markdown("---")
 
 # Default Connection
 st.header("🚀 Quick Start - Default Connection")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    # Import python packages
+    import streamlit as st
+    from snowflake.snowpark.context import get_active_session
+    from snowflake.snowpark.functions import ai_complete
 
-st.code("""
-# Import python packages
-import streamlit as st
-from snowflake.snowpark.context import get_active_session
-from snowflake.snowpark.functions import ai_complete
+    # Get the current credentials
+    session = get_active_session()
 
-# Get the current credentials
-session = get_active_session()
+    st.title(":material/smart_toy: Hello, Cortex!")
 
-st.title(":material/smart_toy: Hello, Cortex!")
+    # Model and prompt
+    model = "claude-3-5-sonnet"
+    prompt = st.text_input("Enter your prompt:")
 
-# Model and prompt
-model = "claude-3-5-sonnet"
-prompt = st.text_input("Enter your prompt:")
+    # Run LLM inference
+    if st.button("Generate Response"):
+        df = session.range(1).select(
+            ai_complete(model=model, prompt=prompt).alias("response")
+        )
+        
+        # Get and display response
+        response = df.collect()[0][0]
+        st.write(response)
 
-# Run LLM inference
-if st.button("Generate Response"):
-    df = session.range(1).select(
-        ai_complete(model=model, prompt=prompt).alias("response")
-    )
-    
-    # Get and display response
-    response = df.collect()[0][0]
-    st.write(response)
-
-# Footer
-st.divider()
-st.caption("Day 2: Hello, Cortex! | 30 Days of AI")
-""", language="python")
+    # Footer
+    st.divider()
+    st.caption("Day 2: Hello, Cortex! | 30 Days of AI")
+    """, language="python")
 
 st.markdown("---")
 
@@ -88,8 +88,11 @@ try:
                     # Get and display response (ai_complete returns plain text, not JSON)
                     response = df.collect()[0][0]
                     
+                    display_response = str(response).replace("\\n", "\n")
                     st.subheader("Response:")
-                    st.write(response)
+                    with st.container(border=True):
+                        st.markdown(display_response)
+                    st.text_area("Copy response", value=display_response, height=200)
                     
                     # Show raw response in expander
                     with st.expander("See raw response"):
@@ -195,8 +198,11 @@ if 'custom_session' in st.session_state:
                     )
                     custom_response = custom_df.collect()[0][0]
                     
+                    display_custom_response = str(custom_response).replace("\\n", "\n")
                     st.subheader("Response:")
-                    st.write(custom_response)
+                    with st.container(border=True):
+                        st.markdown(display_custom_response)
+                    st.text_area("Copy response", value=display_custom_response, height=200, key="custom_copy")
                     
                     # Show raw response in expander
                     with st.expander("See raw response"):

@@ -11,75 +11,75 @@ st.markdown("---")
 
 # Default Connection
 st.header("🚀 Quick Start - Default Connection")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    import streamlit as st
+    import time
+    from snowflake.snowpark.context import get_active_session
+    from snowflake.snowpark.functions import ai_complete
 
-st.code("""
-import streamlit as st
-import time
-from snowflake.snowpark.context import get_active_session
-from snowflake.snowpark.functions import ai_complete
+    # Get the current credentials
+    session = get_active_session()
 
-# Get the current credentials
-session = get_active_session()
-
-# Cached LLM Function
-@st.cache_data
-def call_cortex_llm(prompt_text):
-    \"\"\"Makes a call to Cortex AI with the given prompt.\"\"\"
-    model = "claude-3-5-sonnet"
-    df = session.range(1).select(
-        ai_complete(model=model, prompt=prompt_text).alias("response")
-    )
-    
-    # Get response (ai_complete returns plain text)
-    response = df.collect()[0][0]
-    return response
-
-# --- App UI ---
-st.title(":material/post_add: LinkedIn Post Generator v2")
-
-# Input widgets
-content = st.text_input("Content URL:", "https://docs.snowflake.com/en/user-guide/views-semantic/overview")
-tone = st.selectbox("Tone:", ["Professional", "Casual", "Funny"])
-word_count = st.slider("Approximate word count:", 50, 300, 100)
-
-# Generate button
-if st.button("Generate Post"):
-    
-    # Initialize the status container
-    with st.status("Starting engine...", expanded=True) as status:
+    # Cached LLM Function
+    @st.cache_data
+    def call_cortex_llm(prompt_text):
+        \"\"\"Makes a call to Cortex AI with the given prompt.\"\"\"
+        model = "claude-3-5-sonnet"
+        df = session.range(1).select(
+            ai_complete(model=model, prompt=prompt_text).alias("response")
+        )
         
-        # Step 1: Construct Prompt
-        st.write(":material/psychology: Thinking: Analyzing constraints and tone...")
-        prompt = f\"\"\"
-        You are an expert social media manager. Generate a LinkedIn post based on the following:
+        # Get response (ai_complete returns plain text)
+        response = df.collect()[0][0]
+        return response
 
-        Tone: {tone}
-        Desired Length: Approximately {word_count} words
-        Use content from this URL: {content}
+    # --- App UI ---
+    st.title(":material/post_add: LinkedIn Post Generator v2")
 
-        Generate only the LinkedIn post text. Use dash for bullet points.
-        \"\"\"
+    # Input widgets
+    content = st.text_input("Content URL:", "https://docs.snowflake.com/en/user-guide/views-semantic/overview")
+    tone = st.selectbox("Tone:", ["Professional", "Casual", "Funny"])
+    word_count = st.slider("Approximate word count:", 50, 300, 100)
+
+    # Generate button
+    if st.button("Generate Post"):
         
-        # Step 2: Call API
-        st.write(":material/flash_on: Generating: contacting Snowflake Cortex...")
-        
-        # This is the blocking call that takes time
-        response = call_cortex_llm(prompt)
-        
-        # Step 3: Update Status to Complete
-        st.write(":material/check_circle: Post generation completed!")
-        status.update(label="Post Generated Successfully!", state="complete", expanded=False)
+        # Initialize the status container
+        with st.status("Starting engine...", expanded=True) as status:
+            
+            # Step 1: Construct Prompt
+            st.write(":material/psychology: Thinking: Analyzing constraints and tone...")
+            prompt = f\"\"\"
+            You are an expert social media manager. Generate a LinkedIn post based on the following:
 
-    # Display Result
-    st.subheader("Generated Post:")
-    st.markdown(response)
+            Tone: {tone}
+            Desired Length: Approximately {word_count} words
+            Use content from this URL: {content}
 
-# Footer
-st.divider()
-st.caption("Day 6: Status UI for Long-Running Task | 30 Days of AI")
-""", language="python")
+            Generate only the LinkedIn post text. Use dash for bullet points.
+            \"\"\"
+            
+            # Step 2: Call API
+            st.write(":material/flash_on: Generating: contacting Snowflake Cortex...")
+            
+            # This is the blocking call that takes time
+            response = call_cortex_llm(prompt)
+            
+            # Step 3: Update Status to Complete
+            st.write(":material/check_circle: Post generation completed!")
+            status.update(label="Post Generated Successfully!", state="complete", expanded=False)
 
-st.markdown("---")
+        # Display Result
+        st.subheader("Generated Post:")
+        st.markdown(response)
+
+    # Footer
+    st.divider()
+    st.caption("Day 6: Status UI for Long-Running Task | 30 Days of AI")
+    """, language="python")
+
+    st.markdown("---")
 
 # Working Demo with Default Connection
 st.header("💬 Try It Yourself!")
@@ -167,18 +167,12 @@ try:
                     status.update(label="Post Generated Successfully!", state="complete", expanded=False)
                 
                 # Display Result
+                display_response = str(response).replace("\\n", "\n")
                 st.subheader("Generated Post:")
-                st.markdown(response)
+                with st.container(border=True):
+                    st.markdown(display_response)
                 
-                # Easy copy text area
-                st.markdown("**📋 Copy from here:**")
-                st.text_area(
-                    "Click inside and press Ctrl+A to select all, then Ctrl+C to copy",
-                    value=response,
-                    height=200,
-                    key="copy_area_default",
-                    label_visibility="collapsed"
-                )
+
                 
                 # Show raw response in expander
                 with st.expander("See raw text"):
@@ -326,19 +320,11 @@ if 'custom_session' in st.session_state:
                     status.update(label="Post Generated Successfully!", state="complete", expanded=False)
                 
                 # Display Result
+                display_custom_response = str(custom_response).replace("\\n", "\n")
                 st.subheader("Generated Post:")
-                st.markdown(custom_response)
-                
-                # Easy copy text area
-                st.markdown("**📋 Copy from here:**")
-                st.text_area(
-                    "Click inside and press Ctrl+A to select all, then Ctrl+C to copy",
-                    value=custom_response,
-                    height=200,
-                    key="copy_area_custom",
-                    label_visibility="collapsed"
-                )
-                
+                with st.container(border=True):
+                    st.markdown(display_custom_response)
+
                 # Show raw response in expander
                 with st.expander("See raw text"):
                     st.code(custom_response)

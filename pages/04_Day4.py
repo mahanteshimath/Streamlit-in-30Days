@@ -11,44 +11,44 @@ st.markdown("---")
 
 # Default Connection
 st.header("🚀 Quick Start - Default Connection")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    # Import python packages
+    import streamlit as st
+    import time
+    from snowflake.snowpark.context import get_active_session
+    from snowflake.snowpark.functions import ai_complete
 
-st.code("""
-# Import python packages
-import streamlit as st
-import time
-from snowflake.snowpark.context import get_active_session
-from snowflake.snowpark.functions import ai_complete
+    # Get the current credentials
+    session = get_active_session()
 
-# Get the current credentials
-session = get_active_session()
+    st.title(":material/cached: Caching your App")
 
-st.title(":material/cached: Caching your App")
+    @st.cache_data
+    def call_cortex_llm(prompt_text):
+        model = "claude-3-5-sonnet"
+        df = session.range(1).select(
+            ai_complete(model=model, prompt=prompt_text).alias("response")
+        )
+        
+        # Get response (ai_complete returns plain text)
+        response = df.collect()[0][0]
+        return response
 
-@st.cache_data
-def call_cortex_llm(prompt_text):
-    model = "claude-3-5-sonnet"
-    df = session.range(1).select(
-        ai_complete(model=model, prompt=prompt_text).alias("response")
-    )
-    
-    # Get response (ai_complete returns plain text)
-    response = df.collect()[0][0]
-    return response
+    prompt = st.text_input("Enter your prompt", "Why is the sky blue?")
 
-prompt = st.text_input("Enter your prompt", "Why is the sky blue?")
+    if st.button("Submit"):
+        start_time = time.time()
+        response = call_cortex_llm(prompt)
+        end_time = time.time()
+        
+        st.success(f"*Call took {end_time - start_time:.2f} seconds*")
+        st.write(response)
 
-if st.button("Submit"):
-    start_time = time.time()
-    response = call_cortex_llm(prompt)
-    end_time = time.time()
-    
-    st.success(f"*Call took {end_time - start_time:.2f} seconds*")
-    st.write(response)
-
-# Footer
-st.divider()
-st.caption("Day 4: Caching your App | 30 Days of AI")
-""", language="python")
+    # Footer
+    st.divider()
+    st.caption("Day 4: Caching your App | 30 Days of AI")
+    """, language="python")
 
 st.markdown("---")
 
@@ -104,8 +104,11 @@ try:
                 
                 st.success(f"✅ *Call took {end_time - start_time:.2f} seconds*")
                 
+                display_response = str(response).replace("\\n", "\n")
                 st.subheader("Response:")
-                st.write(response)
+                with st.container(border=True):
+                    st.markdown(display_response)
+                st.text_area("Copy response", value=display_response, height=200)
                 
                 st.info("💡 **Tip:** Try submitting the same prompt again to see the caching in action - it should be much faster!")
                 
@@ -221,8 +224,11 @@ if 'custom_session' in st.session_state:
                 
                 st.success(f"✅ *Call took {end_time - start_time:.2f} seconds*")
                 
+                display_custom_response = str(custom_response).replace("\\n", "\n")
                 st.subheader("Response:")
-                st.write(custom_response)
+                with st.container(border=True):
+                    st.markdown(display_custom_response)
+                st.text_area("Copy response", value=display_custom_response, height=200, key="custom_copy")
                 
                 st.info("💡 **Tip:** Try submitting the same prompt again to see the caching in action - it should be much faster!")
                 

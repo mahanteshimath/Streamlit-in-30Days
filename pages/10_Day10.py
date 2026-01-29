@@ -1,5 +1,5 @@
 import streamlit as st
-from snowflake.snowpark.context import get_active_session
+import json
 from snowflake.snowpark.functions import ai_complete
 
 st.set_page_config(page_title="Day 10 - Your First Chatbot", page_icon="🔟", layout="wide")
@@ -10,22 +10,35 @@ st.markdown("---")
 
 # Default Connection
 st.header("🚀 Quick Start - Default Connection")
-
-st.code("""
+with st.expander("View Code Snippet", expanded=False):
+    snippet = '''
 import streamlit as st
-from snowflake.snowpark.context import get_active_session
+import json
 from snowflake.snowpark.functions import ai_complete
 
-# Get the current credentials
-session = get_active_session()
+# Connect to Snowflake
+try:
+    # Works in Streamlit in Snowflake
+    from snowflake.snowpark.context import get_active_session
+    session = get_active_session()
+except:
+    # Works locally and on Streamlit Community Cloud
+    from snowflake.snowpark import Session
+    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
 
 def call_llm(prompt_text: str) -> str:
-    \"\"\"Call Snowflake Cortex LLM.\"\"\"
+    # Call Snowflake Cortex LLM.
     df = session.range(1).select(
         ai_complete(model="claude-3-5-sonnet", prompt=prompt_text).alias("response")
     )
-    response = df.collect()[0][0]
-    return response
+    response_raw = df.collect()[0][0]
+    try:
+        response_json = json.loads(response_raw)
+        if isinstance(response_json, dict):
+            return response_json.get("choices", [{}])[0].get("messages", "")
+        return str(response_json)
+    except Exception:
+        return str(response_raw)
 
 st.title(":material/chat: My First Chatbot")
 
@@ -57,7 +70,8 @@ if prompt := st.chat_input("What would you like to know?"):
 
 st.divider()
 st.caption("Day 10: Your First Chatbot (with State) | 30 Days of AI")
-""", language="python")
+    '''
+    st.code(snippet, language="python")
 
 st.markdown("---")
 
@@ -66,34 +80,34 @@ st.header("💬 Try It Yourself!")
 st.caption("Using default Snowflake connection - Your messages persist in session state!")
 
 try:
-    # Get the current credentials
-    if 'default_session' not in st.session_state:
+    # Get the current credentials (Snowflake first, then secrets fallback)
+    if "default_session" not in st.session_state:
         try:
-            # Try Streamlit in Snowflake first
+            from snowflake.snowpark.context import get_active_session
             st.session_state.default_session = get_active_session()
-        except:
-            # Fall back to secrets.toml for local development
+        except Exception:
             from snowflake.snowpark import Session
-            if "connections" in st.secrets and "my_example_connection" in st.secrets["connections"]:
-                st.session_state.default_session = Session.builder.configs(
-                    st.secrets["connections"]["my_example_connection"]
-                ).create()
-            else:
-                raise Exception("No Snowflake connection configured in secrets.toml")
-    
+            st.session_state.default_session = Session.builder.configs(
+                st.secrets["connections"]["snowflake"]
+            ).create()
+
     session = st.session_state.default_session
     st.success("✅ Connected to Snowflake!")
-    
-    # LLM Function
+
     def call_llm(prompt_text: str) -> str:
-        """Call Snowflake Cortex LLM."""
+        """Call Snowflake Cortex LLM with JSON-safe parsing."""
         df = session.range(1).select(
             ai_complete(model="claude-3-5-sonnet", prompt=prompt_text).alias("response")
         )
-        # Get response (ai_complete returns plain text, not JSON)
-        response = df.collect()[0][0]
-        return response
-    
+        response_raw = df.collect()[0][0]
+        try:
+            response_json = json.loads(response_raw)
+            if isinstance(response_json, dict):
+                return response_json.get("choices", [{}])[0].get("messages", "")
+            return str(response_json)
+        except Exception:
+            return str(response_raw)
+
     # Initialize the messages list in session state
     if "default_messages" not in st.session_state:
         st.session_state.default_messages = []
@@ -220,50 +234,36 @@ if 'custom_session' in st.session_state:
         df = st.session_state.custom_session.range(1).select(
             ai_complete(model="claude-3-5-sonnet", prompt=prompt_text).alias("response")
         )
-        # Get response (ai_complete returns plain text, not JSON)
-        response = df.collect()[0][0]
-        return response
+        response_raw = df.collect()[0][0]
+        try:
+            response_json = json.loads(response_raw)
+            if isinstance(response_json, dict):
+                return response_json.get("choices", [{}])[0].get("messages", "")
+            return str(response_json)
+        except Exception:
+            return str(response_raw)
     
     # Initialize the messages list in session state
     if "custom_messages" not in st.session_state:
         st.session_state.custom_messages = []
     
-    # Controls
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.caption(f"📊 Messages: {len(st.session_state.custom_messages)}")
-    with col2:
-        if st.button("🗑️ Clear", key="custom_clear"):
-            st.session_state.custom_messages = []
-            st.rerun()
-    
-    # Display all messages from history
+    # Display all messages
     for message in st.session_state.custom_messages:
         with st.chat_message(message["role"]):
             st.write(message["content"])
-    
+
     # Chat input
     if custom_prompt := st.chat_input("What would you like to know?", key="custom_input"):
         try:
-            # Add user message to state
             st.session_state.custom_messages.append({"role": "user", "content": custom_prompt})
-            
-            # Display user message
             with st.chat_message("user"):
                 st.write(custom_prompt)
-            
-            # Generate and display assistant response
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     custom_response = call_llm_custom(custom_prompt)
                 st.write(custom_response)
-            
-            # Add assistant response to state
             st.session_state.custom_messages.append({"role": "assistant", "content": custom_response})
-            
-            # Rerun to update display
             st.rerun()
-            
         except Exception as e:
             st.error(f"Error generating response: {str(e)}")
 
@@ -271,36 +271,4 @@ if 'custom_session' in st.session_state:
 st.divider()
 st.caption("Day 10: Your First Chatbot (with State) | 30 Days of AI")
 
-st.markdown(
-    '''
-    <style>
-    .streamlit-expanderHeader {
-        background-color: blue;
-        color: white; # Adjust this for expander header color
-    }
-    .streamlit-expanderContent {
-        background-color: blue;
-        color: white; # Expander content color
-    }
-    </style>
-    ''',
-    unsafe_allow_html=True
-)
 
-footer="""<style>
-
-.footer {
-position: fixed;
-left: 0;
-bottom: 0;
-width: 100%;
-background-color: #2C1E5B;
-color: white;
-text-align: center;
-}
-</style>
-<div class="footer">
-<p>Developed with ❤️ by <a style='display: inline; text-align: center;' href="https://bit.ly/atozaboutdata" target="_blank">MAHANTESH HIREMATH</a></p>
-</div>
-"""
-st.markdown(footer,unsafe_allow_html=True)

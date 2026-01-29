@@ -11,84 +11,84 @@ st.markdown("---")
 
 # Default Connection
 st.header("🚀 Quick Start - Default Connection")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    import streamlit as st
+    from snowflake.snowpark.context import get_active_session
+    from snowflake.snowpark.functions import ai_complete
+    import time
 
-st.code("""
-import streamlit as st
-from snowflake.snowpark.context import get_active_session
-from snowflake.snowpark.functions import ai_complete
-import time
+    # Get the current credentials
+    session = get_active_session()
 
-# Get the current credentials
-session = get_active_session()
+    def call_llm(prompt_text: str) -> str:
+        \"\"\"Call Snowflake Cortex LLM.\"\"\"
+        df = session.range(1).select(
+            ai_complete(model="claude-3-5-sonnet", prompt=prompt_text).alias("response")
+        )
+        response = df.collect()[0][0]
+        return response
 
-def call_llm(prompt_text: str) -> str:
-    \"\"\"Call Snowflake Cortex LLM.\"\"\"
-    df = session.range(1).select(
-        ai_complete(model="claude-3-5-sonnet", prompt=prompt_text).alias("response")
-    )
-    response = df.collect()[0][0]
-    return response
+    st.title(":material/chat: Chatbot with Streaming")
 
-st.title(":material/chat: Chatbot with Streaming")
-
-# Initialize messages
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Hello! I'm your AI assistant. How can I help you today?"}
-    ]
-
-# Sidebar to show conversation stats
-with st.sidebar:
-    st.header("Conversation Stats")
-    user_msgs = len([m for m in st.session_state.messages if m["role"] == "user"])
-    assistant_msgs = len([m for m in st.session_state.messages if m["role"] == "assistant"])
-    st.metric("Your Messages", user_msgs)
-    st.metric("AI Responses", assistant_msgs)
-    
-    if st.button("Clear History"):
+    # Initialize messages
+    if "messages" not in st.session_state:
         st.session_state.messages = [
             {"role": "assistant", "content": "Hello! I'm your AI assistant. How can I help you today?"}
         ]
+
+    # Sidebar to show conversation stats
+    with st.sidebar:
+        st.header("Conversation Stats")
+        user_msgs = len([m for m in st.session_state.messages if m["role"] == "user"])
+        assistant_msgs = len([m for m in st.session_state.messages if m["role"] == "assistant"])
+        st.metric("Your Messages", user_msgs)
+        st.metric("AI Responses", assistant_msgs)
+        
+        if st.button("Clear History"):
+            st.session_state.messages = [
+                {"role": "assistant", "content": "Hello! I'm your AI assistant. How can I help you today?"}
+            ]
+            st.rerun()
+
+    # Display all messages from history
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Chat input
+    if prompt := st.chat_input("Type your message..."):
+        # Add and display user message
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Build the full conversation history for context
+        conversation = "\\n\\n".join([
+            f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
+            for msg in st.session_state.messages
+        ])
+        full_prompt = f"{conversation}\\n\\nAssistant:"
+        
+        # Generate stream
+        def stream_generator():
+            response_text = call_llm(full_prompt)
+            for word in response_text.split(" "):
+                yield word + " "
+                time.sleep(0.02)
+        
+        # Display assistant response with streaming
+        with st.chat_message("assistant"):
+            with st.spinner("Processing"):
+                response = st.write_stream(stream_generator)
+        
+        # Add assistant response to state
+        st.session_state.messages.append({"role": "assistant", "content": response})
         st.rerun()
 
-# Display all messages from history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# Chat input
-if prompt := st.chat_input("Type your message..."):
-    # Add and display user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    # Build the full conversation history for context
-    conversation = "\\n\\n".join([
-        f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
-        for msg in st.session_state.messages
-    ])
-    full_prompt = f"{conversation}\\n\\nAssistant:"
-    
-    # Generate stream
-    def stream_generator():
-        response_text = call_llm(full_prompt)
-        for word in response_text.split(" "):
-            yield word + " "
-            time.sleep(0.02)
-    
-    # Display assistant response with streaming
-    with st.chat_message("assistant"):
-        with st.spinner("Processing"):
-            response = st.write_stream(stream_generator)
-    
-    # Add assistant response to state
-    st.session_state.messages.append({"role": "assistant", "content": response})
-    st.rerun()
-
-st.divider()
-st.caption("Day 12: Streaming Responses | 30 Days of AI")
-""", language="python")
+    st.divider()
+    st.caption("Day 12: Streaming Responses | 30 Days of AI")
+    """, language="python")
 
 st.markdown("---")
 
@@ -123,6 +123,10 @@ try:
         )
         # Get response (ai_complete returns plain text, not JSON)
         response = df.collect()[0][0]
+        # Clean up response: remove escaped newlines and surrounding quotes
+        response = str(response).replace("\\n", "\n").strip()
+        if response.startswith('"') and response.endswith('"'):
+            response = response[1:-1]
         return response
     
     # Initialize messages
@@ -185,6 +189,11 @@ try:
             with st.chat_message("assistant"):
                 with st.spinner("Processing..."):
                     response = st.write_stream(stream_generator)
+            
+            # Clean up response before storing
+            response = str(response).replace("\\n", "\n").strip()
+            if response.startswith('"') and response.endswith('"'):
+                response = response[1:-1]
             
             # Add assistant response to state
             st.session_state.default_messages_stream.append({"role": "assistant", "content": response})
@@ -275,6 +284,10 @@ if 'custom_session' in st.session_state:
         )
         # Get response (ai_complete returns plain text, not JSON)
         response = df.collect()[0][0]
+        # Clean up response: remove escaped newlines and surrounding quotes
+        response = str(response).replace("\\n", "\n").strip()
+        if response.startswith('"') and response.endswith('"'):
+            response = response[1:-1]
         return response
     
     # Initialize messages
@@ -331,6 +344,11 @@ if 'custom_session' in st.session_state:
                 with st.spinner("Processing..."):
                     custom_response = st.write_stream(stream_generator_custom)
             
+            # Clean up response before storing
+            custom_response = str(custom_response).replace("\\n", "\n").strip()
+            if custom_response.startswith('"') and custom_response.endswith('"'):
+                custom_response = custom_response[1:-1]
+            
             # Add assistant response to state
             st.session_state.custom_messages_stream.append({"role": "assistant", "content": custom_response})
             st.rerun()
@@ -341,37 +359,3 @@ if 'custom_session' in st.session_state:
 # Footer
 st.divider()
 st.caption("Day 12: Streaming Responses | 30 Days of AI")
-
-st.markdown(
-    '''
-    <style>
-    .streamlit-expanderHeader {
-        background-color: blue;
-        color: white; # Adjust this for expander header color
-    }
-    .streamlit-expanderContent {
-        background-color: blue;
-        color: white; # Expander content color
-    }
-    </style>
-    ''',
-    unsafe_allow_html=True
-)
-
-footer="""<style>
-
-.footer {
-position: fixed;
-left: 0;
-bottom: 0;
-width: 100%;
-background-color: #2C1E5B;
-color: white;
-text-align: center;
-}
-</style>
-<div class="footer">
-<p>Developed with ❤️ by <a style='display: inline; text-align: center;' href="https://bit.ly/atozaboutdata" target="_blank">MAHANTESH HIREMATH</a></p>
-</div>
-"""
-st.markdown(footer,unsafe_allow_html=True)

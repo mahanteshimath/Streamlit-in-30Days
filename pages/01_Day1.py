@@ -9,21 +9,21 @@ st.markdown("---")
 
 # Default Connection
 st.header("🚀 Quick Start - Default Connection")
+with st.expander("View Code Snippet", expanded=False):
+    st.code("""
+    # Import python packages
+    import streamlit as st
+    from snowflake.snowpark.context import get_active_session
 
-st.code("""
-# Import python packages
-import streamlit as st
-from snowflake.snowpark.context import get_active_session
+    # Get the current credentials
+    session = get_active_session()
 
-# Get the current credentials
-session = get_active_session()
+    # Query and display Snowflake version
+    version = session.sql("SELECT CURRENT_VERSION()").collect()[0][0]
 
-# Query and display Snowflake version
-version = session.sql("SELECT CURRENT_VERSION()").collect()[0][0]
-
-# Show results
-st.success(f"Successfully connected! Snowflake Version: {version}")
-""", language="python")
+    # Show results
+    st.success(f"Successfully connected! Snowflake Version: {version}")
+    """, language="python")
 
 try:
     # Get the current credentials
@@ -94,14 +94,14 @@ with st.expander("Connect with your own Snowflake account"):
     col1, col2 = st.columns(2)
     
     with col1:
-        account = st.text_input("Account", placeholder="xy12345.us-east-1")
-        user = st.text_input("User", placeholder="yourusername")
+        account = st.text_input("Account", value="JDNLKWD-OZB14673")
+        user = st.text_input("User", value="Monty")
         password = st.text_input("Password", type="password")
         role = st.text_input("Role", value="ACCOUNTADMIN")
     
     with col2:
         warehouse = st.text_input("Warehouse", value="COMPUTE_WH")
-        database = st.text_input("Database", placeholder="YOUR_DATABASE")
+        database = st.text_input("Database", value="MH")
         schema = st.text_input("Schema", value="PUBLIC")
     
     if st.button("Connect", type="primary"):
