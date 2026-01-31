@@ -335,13 +335,79 @@ st.markdown("---")
 st.subheader(":material/science: Try It Out")
 
 st.info("""
-**Steps to test the app:**
-1. Enter a content URL (or use the default Snowflake docs link)
-2. Select a tone: Professional, Casual, or Funny
-3. Adjust the word count using the slider
-4. Click "Generate Post" to see the LinkedIn post
-5. Try different combinations to see how the LLM adapts!
+**Live Demo:** Test the LangChain-powered LinkedIn Post Generator below!
 """, icon=":material/lightbulb:")
+
+# Actual working implementation
+try:
+    from langchain_core.prompts import PromptTemplate
+    from langchain_snowflake import ChatSnowflake
+    
+    # Connect to Snowflake
+    try:
+        from snowflake.snowpark.context import get_active_session
+        session = get_active_session()
+    except:
+        from snowflake.snowpark import Session
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    
+    # Create prompt template
+    template = PromptTemplate.from_template(
+        """You are an expert social media manager. Generate a LinkedIn post based on:
+
+        Tone: {tone}
+        Desired Length: Approximately {word_count} words
+        Use content from this URL: {content}
+
+        Generate only the LinkedIn post text. Use dash for bullet points."""
+    )
+    
+    # Create LLM and chain
+    llm = ChatSnowflake(model="claude-3-5-sonnet", session=session)
+    chain = template | llm
+    
+    # UI
+    with st.container(border=True):
+        st.markdown("### :material/post: LinkedIn Post Generator")
+        
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            content = st.text_input(
+                "Content URL:", 
+                "https://docs.snowflake.com/en/user-guide/views-semantic/overview",
+                key="demo_content"
+            )
+        with col2:
+            tone = st.selectbox("Tone:", ["Professional", "Casual", "Funny"], key="demo_tone")
+        
+        word_count = st.slider("Approximate word count:", 50, 300, 100, key="demo_word_count")
+        
+        if st.button("Generate Post", type="primary", use_container_width=True):
+            with st.spinner("Generating your LinkedIn post..."):
+                result = chain.invoke({"content": content, "tone": tone, "word_count": word_count})
+                st.success("Post generated successfully!", icon=":material/check_circle:")
+                st.markdown("---")
+                st.markdown("**Generated Post:**")
+                st.markdown(result.content)
+
+except ImportError as e:
+    st.error(f"""
+    **LangChain packages not installed!**
+    
+    Install required packages:
+    ```bash
+    pip install langchain-core langchain-snowflake snowflake-snowpark-python
+    ```
+    """, icon=":material/error:")
+except Exception as e:
+    st.error(f"""
+    **Error:** {str(e)}
+    
+    Make sure you have:
+    - Valid Snowflake connection configured in secrets
+    - Required packages installed
+    - Cortex AI enabled in your Snowflake account
+    """, icon=":material/error:")
 
 st.markdown("---")
 
