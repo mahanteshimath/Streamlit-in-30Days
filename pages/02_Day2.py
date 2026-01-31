@@ -56,9 +56,9 @@ try:
         except:
             # Fall back to secrets.toml for local development
             from snowflake.snowpark import Session
-            if "connections" in st.secrets and "my_example_connection" in st.secrets["connections"]:
+            if "connections" in st.secrets and "snowflake" in st.secrets["connections"]:
                 st.session_state.default_session = Session.builder.configs(
-                    st.secrets["connections"]["my_example_connection"]
+                    st.secrets["connections"]["snowflake"]
                 ).create()
             else:
                 raise Exception("No Snowflake connection configured in secrets.toml")
