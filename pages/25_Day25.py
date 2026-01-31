@@ -15,7 +15,7 @@ try:
 except:
     # Works locally and on Streamlit Community Cloud
     from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    session = Session.builder.configs(st.secrets["connections"]["my_example_connection"]).create()
 
 def call_llm(prompt_text: str) -> str:
     """Call Snowflake Cortex LLM."""

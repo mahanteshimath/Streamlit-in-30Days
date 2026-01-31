@@ -244,7 +244,7 @@ try:
 except:
     # Works locally and on Streamlit Community Cloud
     from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
+    session = Session.builder.configs(st.secrets["connections"]["my_example_connection"]).create()
 
 # Initialize state
 if "image_database" not in st.session_state:
