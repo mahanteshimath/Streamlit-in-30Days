@@ -26,7 +26,7 @@ except:
     try:
         # Works locally and on Streamlit Community Cloud
         from snowflake.snowpark import Session
-        session = Session.builder.configs(st.secrets["connections"]["my_example_connection"]).create()
+        session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
     except Exception as e:
         session = None
         # st.warning(f"Snowflake session could not be established: {e}")

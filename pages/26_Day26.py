@@ -8,7 +8,7 @@ try:
     session = get_active_session()
 except:
     from snowflake.snowpark import Session
-    session = Session.builder.configs(st.secrets["connections"]["my_example_connection"]).create()
+    session = Session.builder.configs(st.secrets["connections"]["snowflake"]).create()
 
 st.title(":material/smart_toy: Introduction to Cortex Agents")
 st.write("Learn how to create Cortex Agents with Cortex Search on sales conversations.")
