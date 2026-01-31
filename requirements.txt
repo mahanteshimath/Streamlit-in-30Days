@@ -4,8 +4,7 @@ snowflake-snowpark-python
 pypdf
 trulens
 trulens-connectors-snowflake
-pocket-tts
 langchain-core 
 langchain-snowflake 
-pydantic
+pydantic>=2.0.0
 
