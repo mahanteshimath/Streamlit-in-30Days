@@ -1,4 +1,10 @@
 import streamlit as st
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_snowflake import ChatSnowflake
+from pydantic import BaseModel, Field
+from typing import Literal
+import json
 
 st.set_page_config(
     page_title="Day 30: Structured Output with Pydantic",
@@ -10,6 +16,44 @@ st.title(":material/schema: Day 30: Structured Output with Pydantic")
 st.write(
     "Take LangChain to the next level with structured output using Pydantic. Get type-safe, validated objects instead of plain text that needs manual parsing."
 )
+
+# Connect to Snowflake
+try:
+    # Works in Streamlit in Snowflake
+    from snowflake.snowpark.context import get_active_session
+    session = get_active_session()
+except:
+    try:
+        # Works locally and on Streamlit Community Cloud
+        from snowflake.snowpark import Session
+        session = Session.builder.configs(st.secrets["connections"]["my_example_connection"]).create()
+    except Exception as e:
+        session = None
+        # st.warning(f"Snowflake session could not be established: {e}")
+
+# Define output schema
+class PlantRecommendation(BaseModel):
+    name: str = Field(description="Plant name")
+    water: Literal["Low", "Medium", "High"] = Field(description="Water requirement")
+    light: Literal["Low", "Medium", "High"] = Field(description="Light requirement")
+    difficulty: Literal["Beginner", "Intermediate", "Expert"] = Field(description="Care difficulty level")
+    care_tips: str = Field(description="Brief care instructions")
+
+# Create parser
+parser = PydanticOutputParser(pydantic_object=PlantRecommendation)
+
+# Create template with format instructions
+template = ChatPromptTemplate.from_messages([
+    ("system", "You are a plant expert. {format_instructions}"),
+    ("human", "Recommend a plant for: {location}, {experience} experience, {space} space")
+])
+
+if session:
+    # Create LLM and chain
+    llm = ChatSnowflake(model="claude-3-5-sonnet", session=session)
+    chain = template | llm | parser
+else:
+    chain = None
 
 # Sidebar
 with st.sidebar:
@@ -446,6 +490,40 @@ st.markdown("---")
 
 # Try It Out Section
 st.subheader(":material/science: Try It Out")
+
+st.markdown("### 🌿 Plant Recommender App")
+
+col1, col2 = st.columns(2)
+with col1:
+    location = st.text_input("Location:", "Apartment in Seattle")
+    experience = st.selectbox("Experience:", ["Beginner", "Intermediate", "Expert"])
+with col2:
+    space = st.text_input("Space Description:", "Small desk near a window")
+
+if st.button("Get Recommendation", type="primary"):
+    if chain:
+        with st.spinner("Analyzing plant compatibility..."):
+            try:
+                result = chain.invoke({
+                    "location": location,
+                    "experience": experience,
+                    "space": space,
+                    "format_instructions": parser.get_format_instructions()
+                })
+
+                st.subheader(f":material/eco: {result.name}")
+                m_col1, m_col2, m_col3 = st.columns(3)
+                m_col1.metric("Water", result.water)
+                m_col2.metric("Light", result.light)
+                m_col3.metric("Difficulty", result.difficulty)
+                st.info(f"**Care Tips:** {result.care_tips}")
+
+                with st.expander(":material/code: View Pydantic Object (JSON)"):
+                    st.json(result.model_dump())
+            except Exception as e:
+                st.error(f"Error generating recommendation: {e}")
+    else:
+        st.error("Snowflake session is not active. Please check your credentials in `.streamlit/secrets.toml`.")
 
 st.info("""
 **Steps to test the app:**

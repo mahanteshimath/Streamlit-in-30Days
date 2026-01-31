@@ -5,3 +5,8 @@ pypdf
 trulens
 trulens-connectors-snowflake
 pocket-tts
+
+langchain-core 
+langchain-snowflake 
+pydantic
+
