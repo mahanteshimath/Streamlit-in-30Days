@@ -48,6 +48,7 @@ day25 = st.Page("pages/25_Day25.py", title="Day 25", icon="🧪")
 day26 = st.Page("pages/26_Day26.py", title="Day 26", icon="⚙️")
 day27 = st.Page("pages/27_Day27.py", title="Day 27", icon="🚀")
 day28 = st.Page("pages/28_Day28.py", title="Day 28", icon="🎯")
+day29 = st.Page("pages/29_Day29.py", title="Day 29", icon="🔗")
 
 
 
@@ -64,7 +65,7 @@ pg = st.navigation(
             day15, day16, day17, day18, day19, day20, day21
         ],
         "Advanced Features - Multimodal AI, Agents, and Deployment": [
-            day22, day23, day24, day25, day26, day27, day28
+            day22, day23, day24, day25, day26, day27, day28, day29
         ]
     }
 )
